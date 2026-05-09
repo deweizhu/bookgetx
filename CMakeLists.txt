@@ -13,6 +13,7 @@ find_package(Qt6 REQUIRED COMPONENTS
         Widgets
         Network
         WebEngineWidgets
+        Gui
 )
 
 # Create a GUI application: on Windows use WIN32 to avoid a console window,

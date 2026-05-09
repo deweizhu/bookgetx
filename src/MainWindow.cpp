@@ -4,8 +4,11 @@
 
 #include "MainWindow.h"
 
-#include <QtWidgets/QComboBox>
+#include <QtWidgets/QMainWindow>
 #include <QtWidgets/QFileDialog>
+#include <QtCore/QStandardPaths>
+
+#include <QtWidgets/QComboBox>
 #include <QtWidgets/QGridLayout>
 #include <QtWidgets/QGroupBox>
 #include <QtWidgets/QHBoxLayout>
@@ -17,7 +20,6 @@
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QSpinBox>
 #include <QtWidgets/QSplitter>
-#include <QtWidgets/QVBoxLayout>
 
 #include <QtCore/QCryptographicHash>
 #include <QtCore/QDir>
@@ -36,7 +38,25 @@
 #include <QtWebEngineCore/QWebEngineProfile>
 #include <QtWebEngineWidgets/QWebEngineView>
 
-MainWindow::MainWindow()
+MainWindow::MainWindow(QWidget* parent)
+    : QMainWindow(parent),
+      manager_(nullptr),
+      webView_(nullptr),
+      saveDirEdit_(nullptr),
+      browseBtn_(nullptr),
+      log_(nullptr),
+      progress_(nullptr),
+      startBtn_(nullptr),
+      stopBtn_(nullptr),
+      clearRecordsBtn_(nullptr),
+      retrySpin_(nullptr),
+      retryDelaySpin_(nullptr),
+      placeholderLengthSpin_(nullptr),
+      placeholderRangeEdit_(nullptr),
+      placeholderTypeBox_(nullptr),
+      urlEdit_(nullptr),
+      prefixEdit_(nullptr),
+      extBox_(nullptr)
 {
     setWindowTitle("BookgetX - Image Downloader");
     resize(1180, 820);
@@ -54,11 +74,19 @@ MainWindow::MainWindow()
             [cookieJar](const QNetworkCookie& cookie) { cookieJar->deleteCookie(cookie); });
 
     connectSignals();
+    initializeSaveDirectory();
 }
 
 void MainWindow::buildUi()
 {
-    auto* inputGroup = new QGroupBox("下载参数");
+    auto* centralWidget = new QWidget(this);
+    setCentralWidget(centralWidget);
+
+    auto* layout = new QVBoxLayout(centralWidget);
+    layout->setContentsMargins(10, 10, 10, 10);
+    layout->setSpacing(10);
+
+    auto* inputGroup = new QGroupBox("下载参数", centralWidget);
     auto* inputLayout = new QGridLayout(inputGroup);
     inputLayout->setContentsMargins(12, 12, 12, 12);
     inputLayout->setHorizontalSpacing(10);
@@ -94,7 +122,7 @@ void MainWindow::buildUi()
     placeholderTypeBox_->addItems({"数字", "字母"});
 
     auto* dirLabel = new QLabel("保存目录:");
-    saveDirEdit_ = new QLineEdit(QDir::current().filePath("downloads"));
+    saveDirEdit_ = new QLineEdit();
     browseBtn_ = new QPushButton("选择目录");
 
     auto* prefixLabel = new QLabel("文件名前缀:");
@@ -158,20 +186,24 @@ void MainWindow::buildUi()
     btnRow->addWidget(clearRecordsBtn_);
     inputLayout->addLayout(btnRow, 6, 2, 1, 5, Qt::AlignLeft);
 
-    auto* statusGroup = new QGroupBox("进度与日志");
+    layout->addWidget(inputGroup);
+
+    auto* statusGroup = new QGroupBox("进度与日志", centralWidget);
     auto* statusLayout = new QVBoxLayout(statusGroup);
     statusLayout->setContentsMargins(12, 12, 12, 12);
     statusLayout->setSpacing(8);
 
-    progress_ = new QProgressBar();
+    progress_ = new QProgressBar(statusGroup);
     progress_->setTextVisible(true);
 
-    log_ = new QPlainTextEdit();
+    log_ = new QPlainTextEdit(statusGroup);
     log_->setReadOnly(true);
     log_->setMinimumHeight(140);
 
     statusLayout->addWidget(progress_);
     statusLayout->addWidget(log_);
+
+    layout->addWidget(statusGroup);
 
     auto* previewGroup = new QGroupBox("当前页面预览（用于人工验证）");
     auto* previewLayout = new QVBoxLayout(previewGroup);
@@ -194,26 +226,46 @@ void MainWindow::buildUi()
     rootSplitter->setStretchFactor(1, 1);
     rootSplitter->setSizes({500, 500});
 
-    auto* rootLayout = new QVBoxLayout(this);
-    rootLayout->setContentsMargins(10, 10, 10, 10);
-    rootLayout->setSpacing(0);
-    rootLayout->addWidget(rootSplitter);
+    layout->addWidget(rootSplitter);
 }
 
 void MainWindow::connectSignals()
 {
-    connect(browseBtn_, &QPushButton::clicked, this, [this]()
-    {
-        const QString dir = QFileDialog::getExistingDirectory(this, "选择保存目录", saveDirEdit_->text());
-        if (!dir.isEmpty())
-        {
-            saveDirEdit_->setText(dir);
-        }
-    });
-
     connect(startBtn_, &QPushButton::clicked, this, &MainWindow::startDownload);
     connect(stopBtn_, &QPushButton::clicked, this, &MainWindow::stopDownload);
     connect(clearRecordsBtn_, &QPushButton::clicked, this, &MainWindow::clearDownloadedRecords);
+    connect(browseBtn_, &QPushButton::clicked, this, &MainWindow::browseSaveDirectory);
+}
+
+void MainWindow::initializeSaveDirectory()
+{
+    QString defaultSaveDir = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    saveDirEdit_->setText(defaultSaveDir);
+}
+
+void MainWindow::browseSaveDirectory()
+{
+    QString dirPath = QFileDialog::getExistingDirectory(this, tr("选择保存目录"), QDir::homePath(),
+        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    if (!dirPath.isEmpty())
+    {
+        saveDirEdit_->setText(dirPath);
+    }
+
+    // 如果没有弹出或返回空（可能被遮挡），使用非原生对话框强制弹出并阻塞
+    QFileDialog dlg(this, tr("选择保存目录"));
+    dlg.setFileMode(QFileDialog::Directory);
+    dlg.setOptions(QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks | QFileDialog::DontUseNativeDialog);
+    dlg.setDirectory(saveDirEdit_->text().isEmpty() ? QDir::homePath() : saveDirEdit_->text());
+
+    if (dlg.exec() == QDialog::Accepted)
+    {
+        const QStringList files = dlg.selectedFiles();
+        if (!files.isEmpty())
+        {
+            saveDirEdit_->setText(files.first());
+        }
+    }
 }
 
 bool MainWindow::parseTemplateAndRange(const QString& inputUrl, QString& outTemplate, QString& errorMsg)
@@ -531,3 +583,4 @@ void MainWindow::downloadCurrentPageWithRetry(int attempt)
                 }
             });
 }
+

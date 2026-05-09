@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <QtWidgets/QWidget>
+#include <QtWidgets/QMainWindow>
 #include <QtCore/QFile>
 #include <QtCore/QSet>
 
@@ -21,12 +21,12 @@ class QNetworkReply;
 
 #include "HashStore.h"
 
-class MainWindow final : public QWidget
+class MainWindow final : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    MainWindow();
+    explicit MainWindow(QWidget* parent = nullptr);
 
 private:
     enum class PlaceholderType { Number, Letter };
@@ -50,6 +50,9 @@ private:
     void clearDownloadedRecords();
 
     void downloadCurrentPageWithRetry(int attempt);
+
+    void initializeSaveDirectory();
+    void browseSaveDirectory();
 
 private:
     QPlainTextEdit* urlEdit_ = nullptr;
