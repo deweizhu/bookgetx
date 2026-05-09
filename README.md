@@ -2,7 +2,7 @@
 
 Bookget X 使用 Qt6 重写，界面更美观，功能更完善。
 
-- 支持 Windows、Linux 和 macOS
+- 支持 Windows / Linux / macOS 原生UI
 - 通用图片批量下载器，支持真人验证码
 - URL hash 下载记录持久化
 - 下载失败后按“重试间隔(秒)”等待再重试（默认 3 秒）
