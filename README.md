@@ -25,6 +25,6 @@ cmake --build build -j
 ```bash
 ./build/bookget
 ```
-## 其它
-
+## 软件运行效果图
+![bookgetx](https://raw.githubusercontent.com/deweizhu/bookgetx/main/screenshot.png)
 
