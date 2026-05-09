@@ -1,6 +1,6 @@
 # Bookget X (Qt6)
 
-Bookget X 使用 Qt6 重写，界面更美观，功能更完善。
+Bookget X 使用 Qt6 重写，主要是简化操作难度。
 
 - 支持 Windows / Linux / macOS 原生UI
 - 通用图片批量下载器，支持真人验证码
