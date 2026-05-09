@@ -1,4 +1,4 @@
-# bookget (Qt6)
+# bookgetx (Qt6)
 
 Bookget X 使用 Qt6 重写，界面更美观，功能更完善。
 
@@ -26,5 +26,5 @@ cmake --build build -j
 ./build/bookget
 ```
 ## 软件运行效果图
-![bookgetx](https://raw.githubusercontent.com/deweizhu/bookgetx/main/screenshot.png)
+![bookgetx](https://zhudw.cn/bookgetx/screenshot.png)
 

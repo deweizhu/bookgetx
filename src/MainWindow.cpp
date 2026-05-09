@@ -466,8 +466,7 @@ void MainWindow::downloadCurrentPageWithRetry(int attempt)
 
     QNetworkRequest req{QUrl(pageUrl)};
     req.setHeader(QNetworkRequest::UserAgentHeader,
-                  "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome Safari");
+                  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36");
 
     QNetworkReply* reply = manager_->get(req);
     connect(reply, &QNetworkReply::finished, this,
