@@ -25,6 +25,17 @@ cmake --build build -j
 ```bash
 ./build/bookget
 ```
+## 一键构建
+- `./build_mac.sh` macOS 构建
+- `./build_linux.sh` Linux 构建
+- `./build_win.ps1` Windows 构建
+
+```bash
+./build_mac.sh
+./build_linux.sh
+./build_win.ps1
+```
+
 ## 软件运行效果图
 ![bookgetx](https://zhudw.cn/bookgetx/screenshot.png)
 
