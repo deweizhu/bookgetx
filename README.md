@@ -1,4 +1,4 @@
-# bookgetx (Qt6)
+# bookget X (Qt6)
 
 Bookget X 使用 Qt6 重写，界面更美观，功能更完善。
 
