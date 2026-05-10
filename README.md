@@ -39,3 +39,17 @@ cmake --build build -j
 ## 软件运行效果图
 ![bookgetx](https://zhudw.cn/bookgetx/screenshot.png)
 
+## 编译依赖
+- Qt6 https://mirrors.ustc.edu.cn/qtproject/archive/online_installers/4.10/
+- C++17
+- CMake 3.16+
+- Windows: Visual Studio 2022+ https://visualstudio.microsoft.com/zh-hans/downloads/
+- Linux: g++ 9+
+- macOS: Xcode 12+
+- 第三方库：Qt6 Network, Qt6 Widgets, Qt6 Core
+  - Qt6 Network 用于 HTTP 请求和验证码处理
+  - Qt6 Widgets 用于构建用户界面
+  - Qt6 Core 用于文件操作和数据存储
+## 许可证
+本项目使用 MIT 许可证，详见 LICENSE 文件。
+
