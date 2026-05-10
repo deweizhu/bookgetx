@@ -46,10 +46,11 @@ cmake --build build -j
 - Windows: Visual Studio 2022+ https://visualstudio.microsoft.com/zh-hans/downloads/
 - Linux: g++ 9+
 - macOS: Xcode 12+
-- 第三方库：Qt6 Network, Qt6 Widgets, Qt6 Core
+- 第三方库：Qt6 Network, Qt6 Widgets, Qt6 Core, Qt6 WebEngineWidgets
   - Qt6 Network 用于 HTTP 请求和验证码处理
   - Qt6 Widgets 用于构建用户界面
   - Qt6 Core 用于文件操作和数据存储
+  - Qt6 WebEngineWidgets 用于浏览器预览图片
 ## 许可证
 本项目使用 MIT 许可证，详见 LICENSE 文件。
 
