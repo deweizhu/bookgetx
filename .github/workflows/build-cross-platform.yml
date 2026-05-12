@@ -1,0 +1,202 @@
+name: build-cross-platform
+
+env:
+  # Install only the Qt modules required by this project:
+  # CMake links: Qt6::Core, Qt6::Widgets, Qt6::Network, Qt6::WebEngineWidgets, Qt6::Gui
+  # Map to installer module names: qtbase, qtwidgets, qtnetwork, qtwebengine, qtgui
+  QT_MODULES_FULL: "qtbase qtwidgets qtnetwork qtwebengine qtgui"
+  # Note: CI uses dynamic Qt libraries (shared) for builds and packaging.
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-linux-x64:
+    name: Linux x64
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build \
+            libgl1-mesa-dev \
+            libxkbcommon-x11-0 \
+            libxkbcommon-dev \
+            libxcb-cursor0
+
+      - name: Install Qt 6 (Linux)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.7.3"
+          target: desktop
+          host: linux
+          modules: ${{ env.QT_MODULES_FULL }}
+          cache: true
+
+      - name: Install linuxdeployqt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends patchelf
+          LINUXDEPLOYQT_URL="https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
+          curl -fsSL "$LINUXDEPLOYQT_URL" -o linuxdeployqt.AppImage
+          chmod +x linuxdeployqt.AppImage
+          sudo mv linuxdeployqt.AppImage /usr/local/bin/linuxdeployqt
+
+      - name: Verify Qt installation (Linux)
+        run: |
+          echo "== Qt verification =="
+          which qmake || true
+          qmake -v || true
+          qmake -query || true
+          echo "Installed modules (lib dir):"
+          if [ -n "${QTDIR:-}" ]; then ls -1 "$QTDIR/lib" || true; else ls -1 "$HOME/Qt" 2>/dev/null || true; fi
+
+      - name: Build
+        env:
+          AUTO_DEPLOY: "1"
+        run: |
+          chmod +x ./build_linux.sh
+          ./build_linux.sh Release
+
+      - name: Package Linux (tar.xz)
+        if: always()
+        run: |
+          set -euo pipefail
+          echo "Packaging Linux artifact (dynamic Qt expect shared libs)"
+          rm -rf package || true
+          mkdir -p package
+          # copy binaries and shared libs from build output
+          if [ -d build/Release ]; then cp -a build/Release/* package/ || true; fi
+          cp -a build/* package/ || true
+          tar -C package -cJf build/bookget-linux-x64.tar.xz .
+      - name: Upload packaged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bookget-linux-x64
+          path: build/bookget-linux-x64.tar.xz
+          if-no-files-found: warn
+
+  build-windows-x64:
+    name: Windows x64
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6 (Windows)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.7.3"
+          target: desktop
+          host: windows
+          arch: win64_msvc2022_64
+          modules: ${{ env.QT_MODULES_FULL }}
+          cache: true
+
+      - name: Verify Qt installation (Windows)
+        shell: pwsh
+        run: |
+          Write-Host "== Qt verification =="
+          Get-Command qmake -ErrorAction SilentlyContinue | Select-Object Path
+          qmake -v
+          qmake -query
+          if ($env:QTDIR) { Get-ChildItem -Path "$env:QTDIR\lib" -ErrorAction SilentlyContinue } else { Write-Host 'QTDIR not set'
+          }
+
+      - name: Build
+        shell: pwsh
+        env:
+          AUTO_DEPLOY: "1"
+        run: |
+          ./build_win.ps1 -BuildType Release -Generator "Visual Studio 17 2022"
+
+      - name: Package Windows (zip)
+        shell: pwsh
+        run: |
+          Write-Host "Packaging Windows artifact"
+          Remove-Item -ErrorAction SilentlyContinue -Recurse -Force .\package
+          New-Item -ItemType Directory -Path .\package | Out-Null
+          $search = Join-Path -Path "build" -ChildPath "Release"
+          if (Test-Path $search) { Copy-Item -Path (Join-Path $search '*') -Destination .\package -Recurse -Force }
+          else { Copy-Item -Path (Join-Path 'build' '*') -Destination .\package -Recurse -Force }
+          $out = 'build\bookget-windows-x64.zip'
+          if (Test-Path $out) { Remove-Item $out -Force }
+          Compress-Archive -Path .\package\* -DestinationPath $out -Force
+      - name: Upload packaged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bookget-windows-x64
+          path: build/bookget-windows-x64.zip
+          if-no-files-found: warn
+
+  build-macos-arm64:
+    name: macOS arm64 (signed DMG)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6 (macOS)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.7.3"
+          target: desktop
+          host: mac
+          arch: clang_arm64
+          modules: ${{ env.QT_MODULES_FULL }}
+          cache: true
+
+      - name: Verify Qt installation (macOS)
+        run: |
+          echo "== Qt verification =="
+          which qmake || true
+          qmake -v || true
+          qmake -query || true
+          if [ -n "${QTDIR:-}" ]; then ls -1 "$QTDIR/lib" || true; else ls -1 /opt/homebrew/opt/qt/lib 2>/dev/null || true; fi
+
+      - name: Import code-signing certificate
+        if: ${{ secrets.MACOS_CERTIFICATE_P12 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' }}
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+
+      - name: Build app and DMG
+        env:
+          CREATE_DMG: "1"
+          AUTO_DEPLOY: "1"
+          DEVELOPER_ID: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
+        run: |
+          chmod +x ./build_mac.sh
+          ./build_mac.sh Release
+
+      - name: Sign DMG
+        if: ${{ secrets.MACOS_DEVELOPER_IDENTITY != '' }}
+        env:
+          DEVELOPER_ID: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
+        run: |
+          codesign --force --sign "$DEVELOPER_ID" build/bookget.dmg
+          codesign --verify --verbose build/bookget.dmg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bookget-macos-arm64
+          path: |
+            build/bookget.app
+            build/bookget.dmg
+          if-no-files-found: error
+
