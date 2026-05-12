@@ -150,6 +150,10 @@ jobs:
     env:
       # set VERSION only when this run is triggered by a tag; otherwise empty
       VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+      # expose cert related secrets as env so 'if' expressions can check env instead of secrets
+      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      MACOS_DEVELOPER_IDENTITY: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
 
     steps:
       - name: Checkout
@@ -174,11 +178,11 @@ jobs:
           if [ -n "${QTDIR:-}" ]; then ls -1 "$QTDIR/lib" || true; else ls -1 /opt/homebrew/opt/qt/lib 2>/dev/null || true; fi
 
       - name: Import code-signing certificate
-        if: ${{ secrets.MACOS_CERTIFICATE_P12 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' }}
+        if: ${{ env.MACOS_CERTIFICATE_P12 != '' && env.MACOS_CERTIFICATE_PASSWORD != '' }}
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_P12 }}
-          p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          p12-file-base64: ${{ env.MACOS_CERTIFICATE_P12 }}
+          p12-password: ${{ env.MACOS_CERTIFICATE_PASSWORD }}
 
       - name: Build app and DMG
         env:
@@ -190,9 +194,9 @@ jobs:
           ./build_mac.sh Release
 
       - name: Sign DMG
-        if: ${{ secrets.MACOS_DEVELOPER_IDENTITY != '' }}
+        if: ${{ env.MACOS_DEVELOPER_IDENTITY != '' }}
         env:
-          DEVELOPER_ID: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
+          DEVELOPER_ID: ${{ env.MACOS_DEVELOPER_IDENTITY }}
         run: |
           DMG_PATH="${{ startsWith(github.ref, 'refs/tags/') && format('build/bookget-macos-arm64-{0}.dmg', github.ref_name) || 'build/bookget-macos-arm64.dmg' }}"
           echo "Signing $DMG_PATH"
