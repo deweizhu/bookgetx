@@ -51,7 +51,7 @@ cmake --build build -j
 - 打包产物：
   - Linux: tar.xz（`build/bookget-linux-x64.tar.xz`）
   - Windows: zip（`build/bookget-windows-x64.zip`）
-  - macOS: dmg（`build/bookget.dmg`）
+  - macOS: dmg（`build/bookget-macos-arm.dmg`）
 
 （CI 使用动态 Qt 库，打包时会包含构建输出和需要的共享库。）
 

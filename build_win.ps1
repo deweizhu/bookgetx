@@ -30,8 +30,9 @@ if ($Generator -ne "") {
 }
 
 cmake @cmakeArgs
+# 对 VS 这类 multi-config 生成器，必须显式指定 --config
 # 使用并行构建，MSBuild 语法为 /m:##
-cmake --build $BuildDir -- /m:$jobs
+cmake --build $BuildDir --config $BuildType -- /m:$jobs
 Write-Host "Build finished: $BuildDir"
 
 # --------------------- Qt deployment for Windows (windeployqt enforced) ---------------------
