@@ -147,6 +147,9 @@ jobs:
   build-macos-arm64:
     name: macOS arm64 (signed DMG)
     runs-on: macos-14
+    env:
+      # set VERSION only when this run is triggered by a tag; otherwise empty
+      VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
 
     steps:
       - name: Checkout
@@ -191,16 +194,18 @@ jobs:
         env:
           DEVELOPER_ID: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
         run: |
-          codesign --force --sign "$DEVELOPER_ID" build/bookget-macos-arm64.dmg
-          codesign --verify --verbose build/bookget-macos-arm64.dmg
+          DMG_PATH="${{ startsWith(github.ref, 'refs/tags/') && format('build/bookget-macos-arm64-{0}.dmg', github.ref_name) || 'build/bookget-macos-arm64.dmg' }}"
+          echo "Signing $DMG_PATH"
+          codesign --force --sign "$DEVELOPER_ID" "$DMG_PATH"
+          codesign --verify --verbose "$DMG_PATH"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bookget-macos-arm
+          name: bookget-macos-arm64
           path: |
             build/bookget.app
-            build/bookget-macos-arm64.dmg
+            ${{ startsWith(github.ref, 'refs/tags/') && format('build/bookget-macos-arm64-{0}.dmg', github.ref_name) || 'build/bookget-macos-arm64.dmg' }}
           if-no-files-found: error
 
   publish-release:
@@ -225,8 +230,42 @@ jobs:
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
         with:
-          name: bookget-macos-arm
+          name: bookget-macos-arm64
           path: artifacts/macos
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          set -euo pipefail
+          echo "Fetching tags"
+          git fetch --tags --prune
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            CURRENT_TAG="${GITHUB_REF#refs/tags/}"
+          else
+            echo "Not a tag ref: $GITHUB_REF"
+            CURRENT_TAG="${GITHUB_REF_NAME:-}" || true
+          fi
+          PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${CURRENT_TAG}$" | head -n1 || true)
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="$PREV_TAG..$CURRENT_TAG"
+          else
+            RANGE="$CURRENT_TAG"
+          fi
+          echo "Range: $RANGE"
+          if [ "$RANGE" = "$CURRENT_TAG" ]; then
+            LOG=$(git --no-pager log -n 50 --pretty=format:'- %s (%h) by %an' "$CURRENT_TAG") || true
+          else
+            LOG=$(git --no-pager log "$RANGE" --pretty=format:'- %s (%h) by %an') || true
+          fi
+          if [ -z "$LOG" ]; then LOG="(no changes)"; fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$LOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         id: create_release
@@ -234,6 +273,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           release_name: ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: false
         env:
@@ -263,8 +303,8 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/macos/bookget-macos-arm64.dmg
-          asset_name: bookget-macos-arm64.dmg
+          asset_path: artifacts/macos/${{ github.ref_name && format('bookget-macos-arm64-{0}.dmg', github.ref_name) || 'bookget-macos-arm64.dmg' }}
+          asset_name: ${{ github.ref_name && format('bookget-macos-arm64-{0}.dmg', github.ref_name) || 'bookget-macos-arm64.dmg' }}
           asset_content_type: application/x-apple-diskimage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

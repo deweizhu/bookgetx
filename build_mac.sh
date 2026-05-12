@@ -71,8 +71,13 @@ echo "Build and deployment completed successfully."
 
 # --------------------- Optional: create a beautified DMG ---------------------
 # Set CREATE_DMG=0 to skip DMG creation
-  if [ "${CREATE_DMG:-1}" != "0" ]; then
-  DMG_PATH="$BUILD_DIR/bookget-macos-arm64.dmg"
+if [ "${CREATE_DMG:-1}" != "0" ]; then
+  DMG_BASENAME="bookget-macos-arm64"
+  if [ -n "${VERSION:-}" ]; then
+    DMG_PATH="$BUILD_DIR/${DMG_BASENAME}-${VERSION}.dmg"
+  else
+    DMG_PATH="$BUILD_DIR/${DMG_BASENAME}.dmg"
+  fi
   TMP_DMG="$BUILD_DIR/bookget_tmp.dmg"
   STAGE_DIR="$BUILD_DIR/dmg-stage"
   APP_NAME="bookget.app"
